@@ -1,0 +1,17 @@
+.builds {
+    display: flex;
+    flex-direction: row;
+}
+.build-log {
+    width: 600px;
+    height: 500px;
+	padding-left: 50px;
+    overflow-y: auto
+}
+.build-list {
+    width: 500px;
+}
+.preformatted {
+    font-family: monospace;
+    white-space: pre-wrap;
+}
