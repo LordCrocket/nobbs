@@ -1,6 +1,7 @@
 bin/
-
+.idea/
 web/build
 web/node_modules
 web/package-lock.json
 web/dist
+web/false

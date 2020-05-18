@@ -1,159 +1,136 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { mockBuilds } from './test-data';
+import PropTypes from 'prop-types';
 import './index.css';
 
 
-
 function FilterControls(props) {
-			return (
-				<form>
-          <input name="filterName" type="text" value={props.filter.filterName} onChange={(e) => props.onChange(e)} />
+    return (
+        <div>
+            <input name="nameFilter" type="text" value={props.filter} onChange={(e) => props.onFilterChange(e)}/>
 
-					<label>Only failed
-						<input name="showOnlyFailed" type="checkbox" checked={props.filter.showOnlyFailed} onChange={(e) => props.onChange(e)} />
-					</label>
-				</form>
-    	);
+            <label>Only failed
+                <input name="showOnlyFailed" type="checkbox" checked={props.showOnlyFailed}
+                       onChange={(e) => props.onOnlyFailedChange(e)}/>
+            </label>
+        </div>
+    );
 }
 
+FilterControls.propTypes = {
+    filter: PropTypes.string,
+    showOnlyFailed: PropTypes.bool,
+    onFilterChange: PropTypes.func,
+    onOnlyFailedChange: PropTypes.func
+};
+
+/**
+ * @return {null}
+ */
 function BuildLog(props) {
-  const selected = props.selected;
-  const build = props.builds.find(build => build.id === selected);
-  if(build && build.log){
-    return (
-      <div className="build-log preformatted">{build.log}</div> 
-    );
-  }
-  else {
-    return null;
-  }
+    const selected = props.selected;
+    const build = props.builds.find(build => build.id === selected);
+    if (build && build.log) {
+        return (
+            <div className="build-log preformatted">{build.log}</div>
+        );
+    } else {
+        return null;
+    }
 }
 
-function BuildRow(props){
+function BuildRow(props) {
 
-	  const build = props.build;
+    const build = props.build;
 
     return (
-		<tr onClick={props.onClick}>
-			<td>{build.timestamp}</td>
-			<td>{build.name}</td>
-			<td>{build.durationSeconds}s</td>
-			<td>{build.status}</td>
-		</tr>
+        <tr onClick={props.onClick}>
+            <td>{build.timestamp}</td>
+            <td>{build.name}</td>
+            <td>{build.durationSeconds}s</td>
+            <td>{build.status}</td>
+        </tr>
     );
 }
 
-function BuildList(props){
+function BuildList(props) {
     const builds = props.builds;
-    const buildList = builds.map((build) => 
-        <BuildRow key={build.id} build={build} onClick={() => props.onClick(build.id)} />,
+    const buildList = builds.map((build) =>
+        <BuildRow key={build.id} build={build} onClick={() => props.onClick(build.id)}/>,
     ).reverse();
 
     return (
-     	<div className="build-list">
-     	 <table>
-     	   <thead>
-     	     <tr>
-     	       <th>Time</th>
-     	       <th>Name</th>
-     	       <th>Duration</th>
-     	       <th>Status</th>
-     	     </tr>
-     	   </thead>
-     	   <tbody>{buildList}</tbody>
-     	 </table>
-     	</div>
+        <div className="build-list">
+            <table>
+                <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Name</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>{buildList}</tbody>
+            </table>
+        </div>
     );
 }
 
-function convertToDisplay(data){
-  return data.map(function(build){
-    const options = { year: 'numeric', month: 'numeric', day: 'numeric' };
-    const date = new Date(build.time * 1000);
-    const timestamp = date.toLocaleDateString('sv-SE', options) + " "+ date.toLocaleTimeString('sv-SE');
+function convertToDisplay(data) {
+    return data.map(function (build) {
+        const options = {year: 'numeric', month: 'numeric', day: 'numeric'};
+        const date = new Date(build.time * 1000);
+        const timestamp = date.toLocaleDateString('sv-SE', options) + " " + date.toLocaleTimeString('sv-SE');
 
-	  build.durationSeconds = build.duration / 1000;
+        build.durationSeconds = build.duration / 1000;
 
-    build.name = build.trigger.name
-    build.timestamp = timestamp
-    return build;
-  });
+        build.name = build.trigger.name;
+        build.timestamp = timestamp;
+        return build;
+    });
 }
- 
-
-class App extends React.Component {
-   constructor(props){
-       super(props);
-       this.state = {
-           selected: null,
-           error: null,
-           isLoaded: false,
-           builds: [],
-					 showOnlyFailed: false,
-					 nameFilter: null
-       }
-   }
-  componentDidMount() {
-    this.interval = setInterval(() => 
-
-      fetch('http://localhost:8081/builds')
-      .then(response => response.json())
-      .then(data => this.setState({ builds: convertToDisplay(data) }))
-      ,1000);
-  }
- 
-   componentWillUnmount() {
-    clearInterval(this.interval);
-   }
-
-   setSelected(buildId){
-       this.setState({
-           selected: buildId,
-       });
-   }
 
 
-	 setFilter(event){
-      const target = event.target;
-      const value = target.type === 'checkbox' ? target.checked : target.value;
-			const name = target.name;
+function App(props) {
+    const [builds, setBuilds] = useState([]);
+    const [selected, setSelected] = useState(null);
+    const [filter, setFilter] = useState("");
+    const [onlyFailed, setOnlyFailed] = useState(false);
 
-      this.setState({
-        [name]: value
-      });
-	 }
+    useEffect(() => {
+        fetch('http://localhost:8081/builds')
+            .then(response => response.json())
+            .then(data => setBuilds(convertToDisplay(data)))
+    },[]);
 
-   render(){
-        var buildList;
-        if(!this.state.showOnlyFailed || this.nameFilter){
-          buildList = this.state.builds;
-        }
-        else {
-				  buildList = this.state.builds.filter((build) => 
-																(!this.state.filterName || build.name.includes(this.state.filterName))
-																&& (!this.state.showOnlyFailed || build.status === "FAILED"))
-        }
 
-				const filter = {
-								showOnlyFailed : this.state.showOnlyFailed,
-								nameFilter : this.state.nameFilter
-							};
-				
-        return (
-            <div className="app">
-		 						<FilterControls filter={filter} onChange={(e) => this.setFilter(e)} />
-								<div className="builds">
-                <BuildList builds={buildList} onClick={(i) => this.setSelected(i)} />
-                <BuildLog builds={buildList} selected={this.state.selected} />
-								</div>
+    let buildList = builds;
+
+    if (onlyFailed) {
+        buildList = buildList.filter((build) => build.status === "FAILED")
+    }
+
+    if (filter) {
+        buildList = buildList.filter((build) => build.name.includes(filter))
+    }
+
+    return (
+        <div className="app">
+            <FilterControls showOnlyFailed={onlyFailed}
+                            filter={filter}
+                            onFilterChange={(e) => setFilter(e.target.value)}
+                            onOnlyFailedChange={(e) => setOnlyFailed(e.target.checked)}/>
+                            
+            <div className="builds">
+                <BuildList builds={buildList} onClick={(i) => setSelected(i)}/>
+                <BuildLog builds={buildList} selected={selected}/>
             </div>
-        );
-   }
+        </div>
+    );
 
 }
 
 ReactDOM.render(
-  <App />,
-  document.getElementById('root')
+    <App/>,
+    document.getElementById('root')
 );
